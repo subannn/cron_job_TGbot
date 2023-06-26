@@ -43,9 +43,9 @@ func Handle(msg *tgbotapi.MessageConfig, chAnnouncement *chan Announcement, User
 	if len(message) >= 4 && message[0] == "/new" && message[1] == "announcement" && isTimeFormat(message[2] + " " + message[3]){
 		var ann Announcement
 		ann.ChatID = msg.ChatID
-		Users_ID.Mut.Lock()
-		Users_ID.Set[ann.ChatID] = true
-		Users_ID.Mut.Unlock()
+		// Users_ID.Mut.Lock()
+		// Users_ID.Set[ann.ChatID] = true
+		// Users_ID.Mut.Unlock()
 		ann.MessageID = int64(msg.ReplyToMessageID)
 		tm := strToTime(message[2] + " " + message[3])
 		ann.AnnouncementData = time.Second * 5
@@ -61,4 +61,5 @@ func Handle(msg *tgbotapi.MessageConfig, chAnnouncement *chan Announcement, User
 		msg.Text = "INCORRECT FORMAT"
 		tgBot.Bot.Send(msg)
 	}
+	return
 }
