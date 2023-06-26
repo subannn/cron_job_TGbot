@@ -2,50 +2,49 @@ package main
 
 import (
 	"time"
-	
-	//"fmt"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	handler "github.com/subannn/TelegramBot/handler"
 	tgBot "github.com/subannn/TelegramBot/tgBot"
 )
 
-func runTicker(ann handler.Announcement) {
+
+
+func runTicker(ann *handler.Announcement, Users_ID *handler.SafeSet) {
+	Users_ID.Mut.Lock()
+	defer Users_ID.Mut.Unlock()
+	msg := tgbotapi.NewForward(0, ann.ChatID, int(ann.MessageID))
 	ticker := time.NewTicker(ann.AnnouncementData)
     for {
         select {
-        case <-ticker.C:
-			sendToAll(ann)
+		case <-ticker.C:
+			msg.ChatID = ann.ChatID
+			tgBot.Bot.Send(msg)
+			return
         }
     }
 }
 
-func sendToAll(ann handler.Announcement) {
-	msg := tgbotapi.NewForward(0, ann.ChatID, int(ann.MessageID))
-	for id := range handler.Users_ID {
-		msg.ChatID = id
-		tgBot.Bot.Send(msg)
-	}
-}
-
-func чоБля(chAnnouncement chan handler.Announcement) {
+func чо(chAnnouncement *chan handler.Announcement, Users_ID *handler.SafeSet) {
 	for {
 		select {
-		case ann := <-chAnnouncement:
-			runTicker(ann)
+		case ann := <-*chAnnouncement:
+			runTicker(&ann, Users_ID)
 		}
 	}
 }
 
+
 func chat_messages(updates tgbotapi.UpdatesChannel) {
 	chAnnouncement := make(chan handler.Announcement)
-	go чоБля(chAnnouncement)
+	var Users_ID handler.SafeSet
+	go чо(&chAnnouncement, &Users_ID)
 
 	for update := range updates {
 		if update.Message != nil { // If we got a message
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, update.Message.Text)
 			msg.ReplyToMessageID = update.Message.MessageID
-			go handler.Handle(&msg, &chAnnouncement)			
+			handler.Handle(&msg, &chAnnouncement, &Users_ID)			
 		}
 		
 	}
