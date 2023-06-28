@@ -1,6 +1,10 @@
 package main
 
 import (
+	"log"
+	"os"
+	"strconv"
+	"sync"
 	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -8,59 +12,44 @@ import (
 	tgBot "github.com/subannn/TelegramBot/tgBot"
 )
 
-
-
-func runTicker(ann handler.Announcement, Users_ID *handler.SafeSet) {
-	// Users_ID.Mut.Lock()
-	// defer Users_ID.Mut.Unlock()
-	msg := tgbotapi.NewForward(0, ann.ChatID, int(ann.MessageID))
-	ticker := time.NewTicker(ann.AnnouncementData)
-    for {
-        select {
-		case <-ticker.C:
-			// for id := range Users_ID.Set {
-			// 	msg.ChatID = id
-			// 	tgBot.Bot.Send(msg)
-			// }
-			msg.ChatID = ann.ChatID // 
-			tgBot.Bot.Send(msg) // 
-			return
-        }
-    }
-}
-
-func чо(chAnnouncement *chan handler.Announcement, Users_ID *handler.SafeSet) {
-	for {
-		select {
-		case ann := <-*chAnnouncement:
-			go runTicker(ann, Users_ID)
-		}
-	}
-}
-
-
-func chat_messages(updates tgbotapi.UpdatesChannel, chAnnouncement *chan handler.Announcement, Users_ID *handler.SafeSet) {
+func chat_messages(updates tgbotapi.UpdatesChannel, chAnnouncement *chan handler.Announcement,  Users_ID *map[int64]bool, Mut *sync.Mutex, SuperUserID int, location *time.Location) {
 	for update := range updates {
 		if update.Message != nil { // If we got a message
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, update.Message.Text)
 			msg.ReplyToMessageID = update.Message.MessageID
-			go handler.Handle(&msg, chAnnouncement, Users_ID)			
+			if msg.ChatID == int64(SuperUserID) {
+				go handler.Handle(&msg, chAnnouncement, location)
+			} else {
+				(*Users_ID)[msg.ChatID] = true
+				msg.Text = "Wait for announcements"
+				tgBot.Bot.Send(msg)
+			}
 		}
 		
 	}
 }
 func main() {
 	tgBot.StartBot()
-
+	SuperUserID, err := strconv.Atoi(os.Getenv("SUPER_USER_ID"))
+	if err != nil {
+		log.Fatal("Environment Variable is empty or not int: ", err)
+	}
+	location, err := time.LoadLocation("Asia/Bishkek")
+	if err != nil {
+		log.Fatal("Failed to load location:", err)
+	}
 	chAnnouncement := make(chan handler.Announcement)
-	var Users_ID handler.SafeSet
+	Users_ID := make(map[int64]bool)
+	var Mut sync.Mutex
 	
-	go чо(&chAnnouncement, &Users_ID)
+	Users_ID[int64(SuperUserID)] = true 
+
+	go handler.Чо(&chAnnouncement, &Users_ID, &Mut)
 
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
 
 	updates := tgBot.Bot.GetUpdatesChan(u)
 
-	chat_messages(updates, &chAnnouncement, &Users_ID)
+	chat_messages(updates, &chAnnouncement, &Users_ID, &Mut, SuperUserID, location)
 }

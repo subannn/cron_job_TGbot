@@ -1,10 +1,8 @@
 package handler
 
 import (
-	"log"
 	"strings"
 	"time"
-	"sync"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	tgBot "github.com/subannn/TelegramBot/tgBot"
@@ -16,43 +14,28 @@ type Announcement struct {
 	AnnouncementData time.Duration
 }
 
-func isTimeFormat(str string) bool{
-    _, err := time.Parse("2006-01-02 15:04", str)
-	if err != nil {
-		return false
-	}
-	return true
-}
-
-func strToTime(str string) time.Time {
-    t, err := time.Parse("2006-01-02 15:04", str)
-	if err != nil {
-		log.Panic(err)
-	}
-	return t
-}
-
-type SafeSet struct {
-	Mut sync.Mutex
-	Set map[int64]bool
-}
-
-func Handle(msg *tgbotapi.MessageConfig, chAnnouncement *chan Announcement, Users_ID *SafeSet) {
+func Handle(msg *tgbotapi.MessageConfig, chAnnouncement *chan Announcement, location *time.Location) {
 
 	message := strings.Split(msg.Text, " ")
-	if len(message) >= 4 && message[0] == "/new" && message[1] == "announcement" && isTimeFormat(message[2] + " " + message[3]){
+	if len(message) >= 4 && message[0] == "/new" && message[1] == "announcement" && IsTimeFormat(message[2] + " " + message[3]){
 		var ann Announcement
 		ann.ChatID = msg.ChatID
-		// Users_ID.Mut.Lock()
-		// Users_ID.Set[ann.ChatID] = true
-		// Users_ID.Mut.Unlock()
+
+		timeInBishkek := time.Now().In(location)
+
 		ann.MessageID = int64(msg.ReplyToMessageID)
-		tm := strToTime(message[2] + " " + message[3])
-		ann.AnnouncementData = time.Second * 5
-		isBefore := time.Now().Before(tm)
-		if isBefore {
+		tm := StrToTime(message[2] + " " + message[3])
+
+		ann.AnnouncementData = tm.Sub(timeInBishkek) - time.Hour * 6
+
+		msg.Text = ann.AnnouncementData.String()
+		tgBot.Bot.Send(msg)
+		
+		if ann.AnnouncementData > time.Second * 5 {
+			msg.Text = "You set announcement, time until: " + ann.AnnouncementData.String()
+			tgBot.Bot.Send(msg)
 			*chAnnouncement <- ann
-		}else {
+		} else {
 			msg.Text = "INCORRECT TIME"
 			tgBot.Bot.Send(msg)
 		}
