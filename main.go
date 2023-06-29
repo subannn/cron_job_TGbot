@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"sync"
 	"time"
+	"os/signal"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	handler "github.com/subannn/TelegramBot/handler"
@@ -20,7 +21,7 @@ func chat_messages(updates tgbotapi.UpdatesChannel, chAnnouncement *chan handler
 			if msg.ChatID == int64(SuperUserID) {
 				go handler.Handle(&msg, chAnnouncement, location)
 			} else {
-				(*Users_ID)[msg.ChatID] = true
+				(*Users_ID)[msg.ChatID] = true 
 				msg.Text = "Wait for announcements"
 				tgBot.Bot.Send(msg)
 			}
@@ -30,7 +31,7 @@ func chat_messages(updates tgbotapi.UpdatesChannel, chAnnouncement *chan handler
 }
 func main() {
 	tgBot.StartBot()
-	SuperUserID, err := strconv.Atoi(os.Getenv("SUPER_USER_ID"))
+	SuperUserID, err := strconv.Atoi(os.Getenv("SUPER_USER_ID")) // user who can set announcment time
 	if err != nil {
 		log.Fatal("Environment Variable is empty or not int: ", err)
 	}
@@ -39,7 +40,7 @@ func main() {
 		log.Fatal("Failed to load location:", err)
 	}
 	chAnnouncement := make(chan handler.Announcement)
-	Users_ID := make(map[int64]bool)
+	Users_ID := make(map[int64]bool) // all users id
 	var Mut sync.Mutex
 	
 	Users_ID[int64(SuperUserID)] = true 
@@ -51,5 +52,24 @@ func main() {
 
 	updates := tgBot.Bot.GetUpdatesChan(u)
 
-	chat_messages(updates, &chAnnouncement, &Users_ID, &Mut, SuperUserID, location)
+	go chat_messages(updates, &chAnnouncement, &Users_ID, &Mut, SuperUserID, location)
+	
+	// shutdown 
+	
+	c := make(chan os.Signal, 1)
+    
+    signal.Notify(c, os.Interrupt)
+
+    <-c
+
+	log.Println("Shutting down")
+	tgBot.Bot.StopReceivingUpdates()
+	
+    ticker := time.NewTicker(time.Duration(time.Second * 10))
+	<-ticker.C
+	os.Exit(0)
+	
+    
+    
+    
 }

@@ -29,7 +29,6 @@ func Handle(msg *tgbotapi.MessageConfig, chAnnouncement *chan Announcement, loca
 		ann.AnnouncementData = tm.Sub(timeInBishkek) - time.Hour * 6
 
 		msg.Text = ann.AnnouncementData.String()
-		tgBot.Bot.Send(msg)
 		
 		if ann.AnnouncementData > time.Second * 5 {
 			msg.Text = "You set announcement, time until: " + ann.AnnouncementData.String()

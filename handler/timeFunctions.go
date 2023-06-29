@@ -19,6 +19,3 @@ func StrToTime(str string) time.Time {
 	}
 	return t
 }
-func GetTimeBefore(t1, t2 time.Time) time.Duration {
-    return time.Duration(t2.Sub(t1).Minutes())
-}
