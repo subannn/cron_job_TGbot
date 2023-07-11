@@ -15,7 +15,6 @@ type Announcement struct {
 }
 
 func Handle(msg *tgbotapi.MessageConfig, chAnnouncement *chan Announcement, location *time.Location) {
-
 	message := strings.Split(msg.Text, " ")
 	if len(message) >= 4 && message[0] == "/new" && message[1] == "announcement" && IsTimeFormat(message[2] + " " + message[3]){
 		var ann Announcement
@@ -38,7 +37,6 @@ func Handle(msg *tgbotapi.MessageConfig, chAnnouncement *chan Announcement, loca
 			msg.Text = "INCORRECT TIME"
 			tgBot.Bot.Send(msg)
 		}
-		
 	} else {
 		msg.Text = "INCORRECT FORMAT"
 		tgBot.Bot.Send(msg)

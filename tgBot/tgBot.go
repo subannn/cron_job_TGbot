@@ -11,7 +11,6 @@ var Bot *tgbotapi.BotAPI
 
 func StartBot(){
 	key := os.Getenv("BOT_KEY") 
-	
 	if(key == "") {
 		log.Fatal("No key")
 	}
